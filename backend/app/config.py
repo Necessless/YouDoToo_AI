@@ -29,6 +29,14 @@ class DatabaseConfig(BaseModel):
         }
 
 
+class HashConfig(BaseSettings):
+    """Класс настройки токенов авторизации и хэширования паролей"""
+    algorithm: str
+    access_token_lifetime: int
+    refresh_token_lifetime: int
+    secret: str
+
+
 class Settings(BaseSettings):
     """Базовый класс настроек приложения, который загружает поля из .env файла"""
     model_config = SettingsConfigDict(
@@ -40,6 +48,7 @@ class Settings(BaseSettings):
     run: RunConfig = RunConfig()
     api: ApiPrefix = ApiPrefix()
     database: DatabaseConfig
+    hash: HashConfig
 
 
 settings = Settings()
