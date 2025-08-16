@@ -1,7 +1,7 @@
 from typing import List
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import MetaData, DateTime, func, ForeignKey
-from .config import settings
+from config import settings
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -19,7 +19,7 @@ class Base(DeclarativeBase):
         DateTime(timezone=True), default=func.now()
     )
     updated_at: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), onupdate=func.now()
+        DateTime(timezone=True), default=func.now(), onupdate=func.now()
     )
 
 

@@ -45,7 +45,7 @@ def create_tokens(data: dict) -> tuple[str, str]:
 
 def hash_password(password: str) -> str:
     """Хеширование пароля через CryptContext"""
-    return pwd_context.hash(password)
+    return pwd_context.hash(str(password))
 
 
 async def get_user_by_id(id: uuid, session: AsyncSession) -> User:
@@ -53,7 +53,7 @@ async def get_user_by_id(id: uuid, session: AsyncSession) -> User:
     query = select(User).where(User.id == id)
     user = await session.scalar(query)
     if not user:
-        raise HTTPException(404, "User with this id was not found")
+        raise HTTPException(status_code=404, detail="User with this id was not found")
     return user
 
 
@@ -82,7 +82,7 @@ def api_key_header(authorization: str = Header(...)) -> str:
         user_id = payload.get("id")
         type = payload.get("type")
         if type is None or type != 'access':
-            raise HTTPException(status_code=401, 'Wrong auth token')
+            raise HTTPException(status_code=401, detail='Wrong auth token')
         return user_id
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid authorization token")
@@ -93,7 +93,7 @@ def refresh_token(refresh_token: str):
         payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM], options={"require": ["exp"], "verify_exp": True})
         type = payload.get('type')
         if type is None or type != 'refresh':
-            raise HTTPException(status_code=401, 'Wrong auth token')
+            raise HTTPException(status_code=401, detail='Wrong auth token')
         new_payload = {
             'id': payload['id'],
             'email': payload['email']

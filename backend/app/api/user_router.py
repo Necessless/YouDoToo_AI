@@ -19,6 +19,6 @@ async def register_user(data: RegisterUserData, session: AsyncSession = Depends(
     await session.commit()
     tokens = create_tokens({'id': user.id, 'email': user.email})
     return {
-        'access': f'Bearer {tokens[0]}',
+        'access': f'{tokens[0]}',
         'refresh': tokens[1]
     }
