@@ -2,9 +2,18 @@ from fastapi import FastAPI
 import uvicorn
 from config import settings
 from api.user_router import router as user_router
+from contextlib import asynccontextmanager
+from redis_client import redis_startup, redis_shutdown
 
 
-main_app = FastAPI()
+@asynccontextmanager 
+async def lifespan(app: FastAPI):
+    print(settings.redis.url)
+    await redis_startup()
+    yield
+    await redis_shutdown()
+
+main_app = FastAPI(lifespan=lifespan)
 
 main_app.include_router(user_router)
 

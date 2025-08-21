@@ -8,6 +8,8 @@ import uuid
 from models import User
 from fastapi import HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
+from redis_client import get_redis
+
 
 SECRET_KEY = settings.hash.secret
 ALGORITHM = settings.hash.algorithm
@@ -17,10 +19,11 @@ REFRESH_TOKEN_LIFETIME = settings.hash.refresh_token_lifetime
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def create_tokens(data: dict) -> tuple[str, str]:
+async def create_tokens(data: dict) -> tuple[str, str]:
     """
     Метод для создания access и refresh токенов.
-    access и refresh - jwt токены, со сроками жизни 15 минут и 30 дней соответственно
+    access и refresh - jwt токены, со сроками жизни 15 минут и 30 дней соответственно.
+    Сохраняет айди каждого рефреш токена как ключ и айди юзера как значение для "блеклиста" токенов.
     """
     to_encode = {
         'id': str(data['id']),
@@ -36,8 +39,10 @@ def create_tokens(data: dict) -> tuple[str, str]:
     refresh_payload = {
         **to_encode, 
         'type': 'refresh',
-        'exp': refresh_expire
+        'exp': refresh_expire,
+        'token_id': str(uuid.uuid4())
     }
+    await store_token_to_redis(refresh_payload['token_id'], to_encode['id'])
     access_token = jwt.encode(access_payload, SECRET_KEY, algorithm=ALGORITHM)
     refresh_token = jwt.encode(refresh_payload, SECRET_KEY, algorithm=ALGORITHM)
     return (access_token, refresh_token)
@@ -87,17 +92,43 @@ def api_key_header(authorization: str = Header(...)) -> str:
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid authorization token")
 
-def refresh_token(refresh_token: str):
+
+async def store_token_to_redis(token_id: str, user_id: str) -> None:
+    """Метод, сохраняющий айди токенов в редис, для создания блеклиста рефреш токенов"""
+    redis = await get_redis()
+    await redis.set(token_id, user_id, ex=REFRESH_TOKEN_LIFETIME*60*60*24)
+
+
+async def delete_token_from_redis(token_id: str) -> None:
+    """Метод, удаляющий айди неактуальные токены из редиса"""
+    redis = await get_redis()
+    await redis.delete(token_id)
+
+
+async def verify_refresh_token(token_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    """Метод, проверяющий на актуальность рефреш токен"""
+    redis = await get_redis()
+    stored_user_id = await redis.get(token_id)
+    if not stored_user_id or stored_user_id != user_id:
+        return False
+    return True
+
+
+async def refresh_token(refresh_token: str):
     """Метод для обновления рефреш и аксесс токенов по рефреш токену"""
     try:
         payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM], options={"require": ["exp"], "verify_exp": True})
         type = payload.get('type')
-        if type is None or type != 'refresh':
+        user_id = payload.get('id')
+        token_id = payload.get('token_id')
+        is_valid = await verify_refresh_token(token_id, user_id)
+        if type is None or type != 'refresh' or is_valid != True:
             raise HTTPException(status_code=401, detail='Wrong auth token')
         new_payload = {
-            'id': payload['id'],
+            'id': user_id,
             'email': payload['email']
         }
+        await delete_token_from_redis(str(token_id))
         return create_tokens(new_payload)
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid authorization token")

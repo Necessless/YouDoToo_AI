@@ -37,6 +37,11 @@ class HashConfig(BaseSettings):
     secret: str
 
 
+class RedisConfig(BaseSettings):
+    """Класс конфигурации redis"""
+    url: str
+
+
 class Settings(BaseSettings):
     """Базовый класс настроек приложения, который загружает поля из .env файла"""
     model_config = SettingsConfigDict(
@@ -49,6 +54,7 @@ class Settings(BaseSettings):
     api: ApiPrefix = ApiPrefix()
     database: DatabaseConfig
     hash: HashConfig
+    redis: RedisConfig
 
 
 settings = Settings()

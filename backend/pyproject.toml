@@ -17,6 +17,8 @@ alembic = "^1.16.4"
 pydantic-settings = "^2.10.1"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 pyjwt = "^2.10.1"
+asyncio = "^4.0.0"
+redis = "^6.4.0"
 
 
 [build-system]
