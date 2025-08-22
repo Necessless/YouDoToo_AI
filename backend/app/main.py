@@ -8,7 +8,6 @@ from redis_client import redis_startup, redis_shutdown
 
 @asynccontextmanager 
 async def lifespan(app: FastAPI):
-    print(settings.redis.url)
     await redis_startup()
     yield
     await redis_shutdown()

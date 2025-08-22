@@ -1,3 +1,4 @@
+from pydantic import SecretStr
 from sqlalchemy import select
 import jwt
 from config import settings
@@ -48,9 +49,9 @@ async def create_tokens(data: dict) -> tuple[str, str]:
     return (access_token, refresh_token)
 
 
-def hash_password(password: str) -> str:
+def hash_password(password: SecretStr) -> str:
     """Хеширование пароля через CryptContext"""
-    return pwd_context.hash(str(password))
+    return pwd_context.hash(password.get_secret_value())
 
 
 async def get_user_by_id(id: uuid, session: AsyncSession) -> User:
@@ -71,10 +72,11 @@ async def get_user_by_email(email: str, session: AsyncSession) -> User:
     return user
 
 
-async def verify_password(email: str, password: str, session: AsyncSession) -> bool:
+async def verify_password(email: str, password: SecretStr, session: AsyncSession, user: User | None = None) -> bool:
     """Метод, получающий юзера из базы и сверяющий пароли."""
-    user = await get_user_by_email(email, session)
-    return pwd_context.verify(password, user.hashed_password)
+    if user is None:
+        user = await get_user_by_email(email, session)
+    return pwd_context.verify(password.get_secret_value(), user.hashed_password)
 
 
 def api_key_header(authorization: str = Header(...)) -> str:
@@ -108,13 +110,13 @@ async def delete_token_from_redis(token_id: str) -> None:
 async def verify_refresh_token(token_id: uuid.UUID, user_id: uuid.UUID) -> bool:
     """Метод, проверяющий на актуальность рефреш токен"""
     redis = await get_redis()
-    stored_user_id = await redis.get(token_id)
+    stored_user_id = await redis.get(str(token_id))
     if not stored_user_id or stored_user_id != user_id:
         return False
     return True
 
 
-async def refresh_token(refresh_token: str):
+async def service_refresh_tokens(refresh_token: str):
     """Метод для обновления рефреш и аксесс токенов по рефреш токену"""
     try:
         payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM], options={"require": ["exp"], "verify_exp": True})
@@ -129,7 +131,8 @@ async def refresh_token(refresh_token: str):
             'email': payload['email']
         }
         await delete_token_from_redis(str(token_id))
-        return create_tokens(new_payload)
+        new_tokens = await create_tokens(new_payload)
+        return new_tokens
     except Exception:
-        raise HTTPException(status_code=401, detail="Invalid authorization token")
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
         
