@@ -7,7 +7,6 @@ redis: Redis | None = None
 async def redis_startup():
     global redis
     try:
-        print(settings.redis.url)
         redis = Redis.from_url(str(settings.redis.url), decode_responses=True)
         await redis.ping()
         print("Redis connection opened.")

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Header, Response, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from api.schemas import RegisterUserData
-from auth import create_tokens, hash_password, api_key_header, get_user_by_email, verify_password, service_refresh_tokens
+from auth import create_tokens, hash_password, api_key_header, get_user_by_email, verify_password, service_refresh_tokens, logout_refresh_token
 from database import db_helper
 from models import User
 from api.schemas import LoginData
@@ -37,7 +37,7 @@ async def secured_method(user_id: str = Depends(api_key_header)):
 async def refresh_tokens(refresh: str = Header(...)):
     new_tokens = await service_refresh_tokens(refresh)
     return new_tokens
-    
+
 
 @router.post('/login', tags=['public'])
 async def login_method(data: LoginData, session: AsyncSession = Depends(db_helper.session_getter)):
@@ -49,3 +49,8 @@ async def login_method(data: LoginData, session: AsyncSession = Depends(db_helpe
     tokens = await create_tokens(payload_data)
     return tokens
 
+
+@router.post('/logout', tags=['private'])
+async def logout_method(user_id: str = Depends(api_key_header), refresh: str = Header(...)):
+    resp = await logout_refresh_token(token=refresh)
+    return resp

@@ -24,7 +24,7 @@ async def create_tokens(data: dict) -> tuple[str, str]:
     """
     Метод для создания access и refresh токенов.
     access и refresh - jwt токены, со сроками жизни 15 минут и 30 дней соответственно.
-    Сохраняет айди каждого рефреш токена как ключ и айди юзера как значение для "блеклиста" токенов.
+    Сохраняет айди каждого рефреш токена как ключ и айди юзера как значение для "вайтлиста" токенов.
     """
     to_encode = {
         'id': str(data['id']),
@@ -96,7 +96,7 @@ def api_key_header(authorization: str = Header(...)) -> str:
 
 
 async def store_token_to_redis(token_id: str, user_id: str) -> None:
-    """Метод, сохраняющий айди токенов в редис, для создания блеклиста рефреш токенов"""
+    """Метод, сохраняющий айди токенов в редис, для создания 'вайтлиста' рефреш токенов"""
     redis = await get_redis()
     await redis.set(token_id, user_id, ex=REFRESH_TOKEN_LIFETIME*60*60*24)
 
@@ -106,6 +106,20 @@ async def delete_token_from_redis(token_id: str) -> None:
     redis = await get_redis()
     await redis.delete(token_id)
 
+
+async def logout_refresh_token(token: str):
+    """Проверка рефреш токена и удаление его из 'вайтлиста'"""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        token_id = payload.get('token_id', None)
+        token_type = payload.get('type', None)
+        if not token_id or not token_type or token_type != 'refresh':
+            raise HTTPException(status_code=401, detail='Wrong refresh token')
+        await delete_token_from_redis(token_id)
+        return {"success": True}
+    except Exception:
+        raise HTTPException(status_code=401, detail='Cant decode refresh token')
+    
 
 async def verify_refresh_token(token_id: uuid.UUID, user_id: uuid.UUID) -> bool:
     """Метод, проверяющий на актуальность рефреш токен"""
