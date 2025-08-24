@@ -54,7 +54,7 @@ def hash_password(password: SecretStr) -> str:
     return pwd_context.hash(password.get_secret_value())
 
 
-async def get_user_by_id(id: uuid, session: AsyncSession) -> User:
+async def get_user_by_id(id: str, session: AsyncSession) -> User:
     """Метод для получения юзера из базы данных по его айди"""
     query = select(User).where(User.id == id)
     user = await session.scalar(query)
