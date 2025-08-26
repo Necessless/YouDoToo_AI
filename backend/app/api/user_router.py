@@ -12,12 +12,11 @@ from auth import (
     create_tokens,
     hash_password,
     api_key_header,
-    get_user_by_email,
     verify_password,
     service_refresh_tokens,
     logout_refresh_token,
-    get_user_by_id,
 )
+from api.utils import get_user_by_email, get_user_by_id
 from database import db_helper
 from models import User
 
@@ -87,8 +86,8 @@ async def update_profile(
     user = await get_user_by_id(user_id, session)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    new_data_hashmap = new_data.model_dump(exclude_none=True)
-    for key, value in new_data_hashmap.items():
+    new_data_dict = new_data.model_dump(exclude_none=True)
+    for key, value in new_data_dict.items():
         setattr(user, key, value)
     await session.commit()
     return user

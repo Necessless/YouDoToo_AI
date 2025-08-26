@@ -10,6 +10,7 @@ from models import User
 from fastapi import HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis_client import get_redis
+from api.utils import get_user_by_email
 
 
 SECRET_KEY = settings.hash.secret
@@ -49,24 +50,6 @@ async def create_tokens(data: dict) -> tuple[str, str]:
 def hash_password(password: SecretStr) -> str:
     """Хеширование пароля через CryptContext"""
     return pwd_context.hash(password.get_secret_value())
-
-
-async def get_user_by_id(id: str, session: AsyncSession) -> User:
-    """Метод для получения юзера из базы данных по его айди"""
-    query = select(User).where(User.id == id)
-    user = await session.scalar(query)
-    if not user:
-        raise HTTPException(status_code=404, detail="User with this id was not found")
-    return user
-
-
-async def get_user_by_email(email: str, session: AsyncSession) -> User:
-    """Метод для получения юзера из базы данных по email"""
-    query = select(User).where(User.email == email)
-    user = await session.scalar(query)
-    if not user:
-        raise HTTPException(404, "User with this email was not found")
-    return user
 
 
 async def verify_password(
@@ -154,4 +137,4 @@ async def service_refresh_tokens(refresh_token: str):
         new_tokens = await create_tokens(new_payload)
         return new_tokens
     except Exception:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
+        raise HTTPException(status_code=401, detail=str(e))

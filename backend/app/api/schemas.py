@@ -91,3 +91,12 @@ class TaskPOST(BaseModel):
         if deadline >= datetime.now(timezone.utc):
             raise ValueError("Deadline must be a date in the future")
         return deadline
+    
+
+class TaskPatch(BaseModel):
+    id: uuid.UUID
+    name: str | None = Field(pattern=r"[а-яА-ЯёЕ]+{2,80}", default=None)
+    description: str | None = Field(max_length=255, default=None)
+    deadline: datetime | None = None
+    is_public: bool | None = Field(default=None)
+    is_completed: bool | None = Field(default=None)
