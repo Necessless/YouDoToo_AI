@@ -26,24 +26,21 @@ async def create_tokens(data: dict) -> tuple[str, str]:
     access и refresh - jwt токены, со сроками жизни 15 минут и 30 дней соответственно.
     Сохраняет айди каждого рефреш токена как ключ и айди юзера как значение для "вайтлиста" токенов.
     """
-    to_encode = {
-        'id': str(data['id']),
-        'email': data['email']
-    }
-    acc_expire = datetime.datetime.now(datetime.timezone.utc) + timedelta(minutes=ACCESS_TOKEN_LIFETIME)
-    refresh_expire = datetime.datetime.now(datetime.timezone.utc) + timedelta(days=REFRESH_TOKEN_LIFETIME)
-    access_payload = {
-        **to_encode, 
-        'type': 'access',
-        'exp': acc_expire
-    }
+    to_encode = {"id": str(data["id"]), "email": data["email"]}
+    acc_expire = datetime.datetime.now(datetime.timezone.utc) + timedelta(
+        minutes=ACCESS_TOKEN_LIFETIME
+    )
+    refresh_expire = datetime.datetime.now(datetime.timezone.utc) + timedelta(
+        days=REFRESH_TOKEN_LIFETIME
+    )
+    access_payload = {**to_encode, "type": "access", "exp": acc_expire}
     refresh_payload = {
-        **to_encode, 
-        'type': 'refresh',
-        'exp': refresh_expire,
-        'token_id': str(uuid.uuid4())
+        **to_encode,
+        "type": "refresh",
+        "exp": refresh_expire,
+        "token_id": str(uuid.uuid4()),
     }
-    await store_token_to_redis(refresh_payload['token_id'], to_encode['id'])
+    await store_token_to_redis(refresh_payload["token_id"], to_encode["id"])
     access_token = jwt.encode(access_payload, SECRET_KEY, algorithm=ALGORITHM)
     refresh_token = jwt.encode(refresh_payload, SECRET_KEY, algorithm=ALGORITHM)
     return (access_token, refresh_token)
@@ -72,7 +69,9 @@ async def get_user_by_email(email: str, session: AsyncSession) -> User:
     return user
 
 
-async def verify_password(email: str, password: SecretStr, session: AsyncSession, user: User | None = None) -> bool:
+async def verify_password(
+    email: str, password: SecretStr, session: AsyncSession, user: User | None = None
+) -> bool:
     """Метод, получающий юзера из базы и сверяющий пароли."""
     if user is None:
         user = await get_user_by_email(email, session)
@@ -85,11 +84,16 @@ def api_key_header(authorization: str = Header(...)) -> str:
         raise HTTPException(status_code=401, detail="Invalid authorization header")
     token = authorization.split(" ")[1]
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"require": ["exp"], "verify_exp": True})
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+            options={"require": ["exp"], "verify_exp": True},
+        )
         user_id = payload.get("id")
         type = payload.get("type")
-        if type is None or type != 'access':
-            raise HTTPException(status_code=401, detail='Wrong auth token')
+        if type is None or type != "access":
+            raise HTTPException(status_code=401, detail="Wrong auth token")
         return user_id
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid authorization token")
@@ -98,7 +102,7 @@ def api_key_header(authorization: str = Header(...)) -> str:
 async def store_token_to_redis(token_id: str, user_id: str) -> None:
     """Метод, сохраняющий айди токенов в редис, для создания 'вайтлиста' рефреш токенов"""
     redis = await get_redis()
-    await redis.set(token_id, user_id, ex=REFRESH_TOKEN_LIFETIME*60*60*24)
+    await redis.set(token_id, user_id, ex=REFRESH_TOKEN_LIFETIME * 60 * 60 * 24)
 
 
 async def delete_token_from_redis(token_id: str) -> None:
@@ -111,15 +115,15 @@ async def logout_refresh_token(token: str):
     """Проверка рефреш токена и удаление его из 'вайтлиста'"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        token_id = payload.get('token_id', None)
-        token_type = payload.get('type', None)
-        if not token_id or not token_type or token_type != 'refresh':
-            raise HTTPException(status_code=401, detail='Wrong refresh token')
+        token_id = payload.get("token_id", None)
+        token_type = payload.get("type", None)
+        if not token_id or not token_type or token_type != "refresh":
+            raise HTTPException(status_code=401, detail="Wrong refresh token")
         await delete_token_from_redis(token_id)
         return {"success": True}
     except Exception:
-        raise HTTPException(status_code=401, detail='Cant decode refresh token')
-    
+        raise HTTPException(status_code=401, detail="Cant decode refresh token")
+
 
 async def verify_refresh_token(token_id: uuid.UUID, user_id: uuid.UUID) -> bool:
     """Метод, проверяющий на актуальность рефреш токен"""
@@ -133,20 +137,21 @@ async def verify_refresh_token(token_id: uuid.UUID, user_id: uuid.UUID) -> bool:
 async def service_refresh_tokens(refresh_token: str):
     """Метод для обновления рефреш и аксесс токенов по рефреш токену"""
     try:
-        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM], options={"require": ["exp"], "verify_exp": True})
-        type = payload.get('type')
-        user_id = payload.get('id')
-        token_id = payload.get('token_id')
+        payload = jwt.decode(
+            refresh_token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+            options={"require": ["exp"], "verify_exp": True},
+        )
+        type = payload.get("type")
+        user_id = payload.get("id")
+        token_id = payload.get("token_id")
         is_valid = await verify_refresh_token(token_id, user_id)
-        if type is None or type != 'refresh' or is_valid != True:
-            raise HTTPException(status_code=401, detail='Wrong auth token')
-        new_payload = {
-            'id': user_id,
-            'email': payload['email']
-        }
+        if type is None or type != "refresh" or is_valid != True:
+            raise HTTPException(status_code=401, detail="Wrong auth token")
+        new_payload = {"id": user_id, "email": payload["email"]}
         await delete_token_from_redis(str(token_id))
         new_tokens = await create_tokens(new_payload)
         return new_tokens
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
-        

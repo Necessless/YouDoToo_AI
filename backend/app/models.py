@@ -23,15 +23,28 @@ class Base(DeclarativeBase):
     )
 
 
+class SubTask(Base):
+    """Подзадачи для основных задач"""
+    __tablename__ = "subtasks"
+
+    name: Mapped[str] = mapped_column()
+    is_completed: Mapped[bool] = mapped_column(default=False)
+
+    parent: Mapped["Task"] = relationship(back_populates="subtasks")
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("tasks.id", ondelete="CASCADE")
+    )
+
+
 class Task(Base):
-    """Класс задач, с дедлайном и флагом на публичность"""
+    """Класс задач с дедлайном и флагом на публичность"""
 
     __tablename__ = "tasks"
 
     name: Mapped[str] = mapped_column()
-    description: Mapped[str] = mapped_column()
-    deadline: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), default=func.now()
+    description: Mapped[str | None] = None
+    deadline: Mapped[DateTime | None] = mapped_column(
+        DateTime(timezone=True), default=None
     )
     is_public: Mapped[bool] = mapped_column(default=True)
 
@@ -39,6 +52,9 @@ class Task(Base):
     owner_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE")
     )
+    is_completed: Mapped[bool] = mapped_column(default=False)
+
+    subtasks: Mapped[List["SubTask"]] = relationship(back_populates="parent")
 
 
 class User(Base):
