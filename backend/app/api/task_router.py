@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import db_helper
 from auth import api_key_header
-from api.schemas import TaskPOST, SubTaskPOST, TaskPatch
+from api.schemas import TaskPOST, SubTaskPOST, TaskPatch, SubTaskPostToMain
 from models import Task, SubTask, User
 import uuid
 from api.utils import get_task_by_id, get_user_by_id
@@ -78,3 +78,23 @@ async def update_task(
         setattr(task, key, value)
     await session.commit()
     return task
+
+
+@router.post("/add-subtask", tags=["task", "private"])
+async def create_subtasks(
+    data: SubTaskPostToMain,
+    user_id: str = Depends(api_key_header),
+    session: AsyncSession = Depends(db_helper.session_getter),
+):
+    task = await get_task_by_id(str(data.main_task_id), session)
+    if str(task.owner_id) != user_id:
+        raise HTTPException(
+            status_code=403, detail="Task can be changed only by its owner"
+        )
+    tasks_to_create = []
+    for task in data.subtasks:
+        tasks_to_create.append(
+            SubTask(name=task.name, is_completed=task.is_completed, parent_id=task.id)
+        )
+    session.add_all(tasks_to_create)
+    await session.commit()

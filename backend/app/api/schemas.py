@@ -72,6 +72,7 @@ class ConfidentialData(BaseModel):
 
 class SubTaskPOST(BaseModel):
     name: str = Field(pattern=r"[а-яА-ЯёЕ]+{2,80}", default="Новая задача")
+    is_completed: bool = False
 
 
 class TaskPOST(BaseModel):
@@ -100,3 +101,8 @@ class TaskPatch(BaseModel):
     deadline: datetime | None = None
     is_public: bool | None = Field(default=None)
     is_completed: bool | None = Field(default=None)
+
+
+class SubTaskPostToMain(BaseModel):
+    subtasks: List[SubTaskPOST]
+    main_task_id: uuid
