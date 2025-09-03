@@ -105,4 +105,4 @@ class TaskPatch(BaseModel):
 
 class SubTaskPostToMain(BaseModel):
     subtasks: List[SubTaskPOST]
-    main_task_id: uuid
+    main_task_id: uuid.UUID

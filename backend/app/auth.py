@@ -131,10 +131,10 @@ async def service_refresh_tokens(refresh_token: str):
         token_id = payload.get("token_id")
         is_valid = await verify_refresh_token(token_id, user_id)
         if type is None or type != "refresh" or is_valid != True:
-            raise HTTPException(status_code=401, detail="Wrong auth token")
+            raise HTTPException(status_code=401, detail="Wrong or expired refresh token")
         new_payload = {"id": user_id, "email": payload["email"]}
         await delete_token_from_redis(str(token_id))
         new_tokens = await create_tokens(new_payload)
         return new_tokens
-    except Exception:
+    except Exception as e:
         raise HTTPException(status_code=401, detail=str(e))

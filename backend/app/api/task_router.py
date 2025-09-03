@@ -92,9 +92,10 @@ async def create_subtasks(
             status_code=403, detail="Task can be changed only by its owner"
         )
     tasks_to_create = []
-    for task in data.subtasks:
+    for subtask in data.subtasks:
         tasks_to_create.append(
-            SubTask(name=task.name, is_completed=task.is_completed, parent_id=task.id)
+            SubTask(name=subtask.name, is_completed=subtask.is_completed, parent_id=task.id)
         )
     session.add_all(tasks_to_create)
     await session.commit()
+    return task

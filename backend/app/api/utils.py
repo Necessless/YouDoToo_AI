@@ -2,11 +2,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models import User, Task, SubTask
 from fastapi import HTTPException
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload, selectinload
 
 
 async def get_task_by_id(id: str, session: AsyncSession) -> Task:
     """Метод для получения модели таска из бд по айди"""
-    query = select(Task).where(Task.id == id)
+    query = select(Task).where(Task.id == id).options(joinedload(Task.subtasks))
     task = await session.scalar(query)
     if not task:
         raise HTTPException(status_code=404, detail="Task with this id was not found")
