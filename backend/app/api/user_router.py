@@ -16,7 +16,7 @@ from auth import (
     service_refresh_tokens,
     logout_refresh_token,
 )
-from api.utils import get_user_by_email, get_user_by_id
+from api.utils import get_user
 from database import db_helper
 from models import User
 
@@ -60,7 +60,7 @@ async def refresh_tokens(refresh: str = Header(...)):
 async def login_method(
     data: LoginData, session: AsyncSession = Depends(db_helper.session_getter)
 ):
-    user = await get_user_by_email(data.email, session)
+    user = await get_user(session, email=data.email)
     isValid = await verify_password(data.email, data.password, session, user)
     if isValid is not True:
         raise HTTPException(status_code=401, detail="Wrong password")
@@ -83,7 +83,7 @@ async def update_profile(
     user_id: str = Depends(api_key_header),
     session: AsyncSession = Depends(db_helper.session_getter),
 ):
-    user = await get_user_by_id(user_id, session)
+    user = await get_user(session, id=user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
     new_data_dict = new_data.model_dump(exclude_none=True)
@@ -99,7 +99,7 @@ async def change_confidentials(
     user_id: str = Depends(api_key_header),
     session: AsyncSession = Depends(db_helper.session_getter),
 ):
-    user = await get_user_by_id(user_id, session)
+    user = await get_user(session, id=user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
     confidential_data = confidential_data.model_dump(exclude_none=True)
@@ -120,7 +120,7 @@ async def check_passwords(
     user_id: str = Depends(api_key_header),
     session: AsyncSession = Depends(db_helper.session_getter),
 ):
-    user = await get_user_by_id(user_id, session)
+    user = await get_user(session, id=user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
     isValid = await verify_password(user.email, input_password, session, user)

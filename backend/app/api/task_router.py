@@ -5,13 +5,13 @@ from auth import api_key_header
 from api.schemas import TaskPOST, SubTaskPOST, TaskPatch, SubTaskPostToMain
 from models import Task, SubTask, User
 import uuid
-from api.utils import get_task_by_id, get_user_by_id
+from api.utils import get_task, get_subtask, get_user
 
 
 router = APIRouter(prefix="/v1/task")
 
 
-@router.post("/main-create", tags=["task", "private"])
+@router.post("", tags=["task", "private"])
 async def create_task(
     task_data: TaskPOST,
     user_id: str = Depends(api_key_header),
@@ -40,12 +40,28 @@ async def delete_task(
     user_id: str = Depends(api_key_header),
     session: AsyncSession = Depends(db_helper.session_getter),
 ):
-    task = await get_task_by_id(task_id, session)
+    task = await get_task(session, id=task_id)
     if str(task.owner_id) != user_id:
         raise HTTPException(
             status_code=403, detail="Task can be deleted only by its owner"
         )
     await session.delete(task)
+    await session.commit()
+    return {"success": True}
+
+
+@router.delete("/delete/subtask/{subtask_id}", tags=["task", "private"])
+async def delete_subtask(
+    subtask_id: str,
+    user_id: str = Depends(api_key_header),
+    session: AsyncSession = Depends(db_helper.session_getter),
+):
+    subtask = await get_subtask(session, id=subtask_id)
+    if subtask.parent.owner_id != user_id:
+        raise HTTPException(
+            status_code=403, detail="SubTask can be deleted only by its owner"
+        )
+    await session.delete(subtask)
     await session.commit()
     return {"success": True}
 
@@ -56,7 +72,7 @@ async def retrieve_task(
     user_id: str | None = Depends(api_key_header),
     session: AsyncSession = Depends(db_helper.session_getter),
 ):
-    task = await get_task_by_id(task_id, session)
+    task = await get_task(session, id=task_id)
     if task.is_public is not True and str(task.owner_id) != user_id:
         raise HTTPException(status_code=403, detail="This task is private")
     return task
@@ -68,7 +84,7 @@ async def update_task(
     user_id: str = Depends(api_key_header),
     session: AsyncSession = Depends(db_helper.session_getter),
 ):
-    task = await get_task_by_id(str(task_data.id), session)
+    task = await get_task(session, id=str(task_data.id))
     if str(task.owner_id) != user_id:
         raise HTTPException(
             status_code=403, detail="Task can be changed only by its owner"
@@ -86,7 +102,7 @@ async def create_subtasks(
     user_id: str = Depends(api_key_header),
     session: AsyncSession = Depends(db_helper.session_getter),
 ):
-    task = await get_task_by_id(str(data.main_task_id), session)
+    task = await get_task(session, id=str(data.main_task_id))
     if str(task.owner_id) != user_id:
         raise HTTPException(
             status_code=403, detail="Task can be changed only by its owner"

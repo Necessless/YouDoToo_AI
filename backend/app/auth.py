@@ -10,7 +10,7 @@ from models import User
 from fastapi import HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis_client import get_redis
-from api.utils import get_user_by_email
+from api.utils import get_user
 
 
 SECRET_KEY = settings.hash.secret
@@ -57,7 +57,7 @@ async def verify_password(
 ) -> bool:
     """Метод, получающий юзера из базы и сверяющий пароли."""
     if user is None:
-        user = await get_user_by_email(email, session)
+        user = await get_user(session, email=email)
     return pwd_context.verify(password.get_secret_value(), user.hashed_password)
 
 
