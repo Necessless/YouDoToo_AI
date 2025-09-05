@@ -127,3 +127,12 @@ async def check_passwords(
     if isValid is not True:
         raise HTTPException(status_code=401, detail="Wrong password")
     return {"success": True}
+
+
+@router.get("/{user_id}", tags=["public", "profile"])
+async def get_user_profile(
+    user_id: str,
+    session: AsyncSession = Depends(db_helper.session_getter),
+):
+    user = await get_user(session, id=user_id)
+    return user
